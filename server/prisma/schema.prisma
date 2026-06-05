@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChatType {
+  DIRECT
+  GROUP
+}
+
+enum ChatMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  username     String        @unique
+  passwordHash String        @map("password_hash")
+  displayName  String?       @map("display_name")
+  avatarUrl    String?       @map("avatar_url")
+  isOnline     Boolean       @default(false) @map("is_online")
+  lastSeenAt   DateTime?     @map("last_seen_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  chatMemberships ChatMember[]
+  messages        Message[]
+  messageStatuses MessageStatusRecord[]
+  refreshTokens   RefreshToken[]
+
+  @@map("users")
+}
+
+model Chat {
+  id        String   @id @default(uuid())
+  type      ChatType
+  title     String?
+  avatarUrl String?  @map("avatar_url")
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  members  ChatMember[]
+  messages Message[]
+
+  @@map("chats")
+}
+
+model ChatMember {
+  id       String         @id @default(uuid())
+  chatId   String         @map("chat_id")
+  userId   String         @map("user_id")
+  role     ChatMemberRole @default(MEMBER)
+  joinedAt DateTime       @default(now()) @map("joined_at")
+  leftAt   DateTime?      @map("left_at")
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([userId])
+  @@map("chat_members")
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  chatId    String      @map("chat_id")
+  senderId  String      @map("sender_id")
+  type      MessageType @default(TEXT)
+  text      String?
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  editedAt  DateTime?   @map("edited_at")
+  deletedAt DateTime?   @map("deleted_at")
+
+  chat        Chat                  @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender      User                  @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  attachments MessageAttachment[]
+  statuses    MessageStatusRecord[]
+
+  @@index([chatId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  url       String
+  fileName  String?  @map("file_name")
+  mimeType  String?  @map("mime_type")
+  size      Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("message_attachments")
+}
+
+model MessageStatusRecord {
+  id        String        @id @default(uuid())
+  messageId String        @map("message_id")
+  userId    String        @map("user_id")
+  status    MessageStatus @default(SENT)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@map("message_statuses")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}

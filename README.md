@@ -2,6 +2,8 @@
 
 Backend-проект на NestJS для чата: REST API, Socket.IO realtime, JWT access/refresh tokens, PostgreSQL и Prisma.
 
+Frontend-клиент находится в `client`. Инструкции запуска: `client/README.md`.
+
 ### Стек
 
 - NestJS, TypeScript
